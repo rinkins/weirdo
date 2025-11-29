@@ -1,10 +1,10 @@
 # flutter_application_1
 
-A new Flutter project.
+A new Flutter translator project.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+3 pages yet(menu, text translator and voice translator)
 
 A few resources to get you started if this is your first Flutter project:
 
