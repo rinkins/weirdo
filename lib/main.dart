@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
 import 'screens/menu.dart';
+import 'supabase/supabase_client.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Инициализируем Supabase
+  await SupabaseService.init();
+  
+  // Проверяем подключение
+  await SupabaseService.testConnection();
+  
   runApp(TranslationApp());
 }
 
 class TranslationApp extends StatelessWidget {
-  @override
+  const TranslationApp({super.key});
+
+  @id86240433 (@override)
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Многофункциональный Переводчик',
+      title: 'Переводчик',
+      theme: ThemeData(primarySwatch: Colors.blue),
       home: MainMenuScreen(),
     );
   }

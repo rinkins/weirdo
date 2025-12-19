@@ -1,196 +1,175 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../supabase/supabase_client.dart';
 
-// Точка входа - как main.js в Vue
-void main() {
-  runApp(TranslationApp());
-}
-
-// Корневой компонент приложения - как App.vue
-class TranslationApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Переводчик', // Аналог <title> в Vue
-      theme: ThemeData(
-        primarySwatch: Colors.blue, // Основной цвет
-      ),
-      home: TranslationScreen(), // Главный экран - как router-view
-    );
-  }
-}
-
-// Главный экран - как страница Vue с состоянием
 class TranslationScreen extends StatefulWidget {
-  @override
+  const TranslationScreen({super.key});
+
+(@override)
   _TranslationScreenState createState() => _TranslationScreenState();
 }
 
-// Класс состояния - как data() + methods в Vue Composition API
 class _TranslationScreenState extends State<TranslationScreen> {
-  // Reactive state - как ref() в Vue
-  String _inputText = '';           // Текст для перевода
-  String _translatedText = '';      // Результат перевода
-  bool _isTranslating = false;      // Состояние загрузки
-  
-  // Словарь для перевода - как computed или внешний API
-  final Map<String, String> _dictionary = {
-    'hello': 'привет',
-    'world': 'мир',
-    'flutter': 'флаттер',
-    'vue': 'вью',
-    'developer': 'разработчик',
-    'code': 'код',
-    'app': 'приложение',
-  };
+  String _inputText = '';
+  String _translatedText = '';
+  bool _isLoading = false;
+  List<Map<String, dynamic>> _translations = [];
 
-  // Метод перевода - как method в Vue
-  void _translateText() {
-    setState(() {
-      _isTranslating = true; // Запускаем "загрузку"
-    });
+(@override)
+  void initState() {
+    super.initState();
+    _loadTranslations();
+  }
 
-    // Имитация асинхронного запроса к API - как await в Vue
-    Future.delayed(Duration(milliseconds: 500), () {
+  // Просто загрузить все переводы из базы
+  Future<void> _loadTranslations() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final response = await SupabaseService.client
+          .from('translations')
+          .select('*')
+          .order('created_at', ascending: false);
+      
       setState(() {
-        // Преобразуем текст и ищем перевод
-        final input = _inputText.toLowerCase().trim();
-        _translatedText = _dictionary[input] ?? 'Перевод не найден';
-        _isTranslating = false;
+        _translations = List<Map<String, dynamic>>.from(response);
       });
-    });
+      
+      print('✅ Загружено ${_translations.length} переводов');
+    } catch (e) {
+      print('❌ Ошибка загрузки: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
-  // Метод очистки - как method в Vue
-  void _clearText() {
-    setState(() {
-      _inputText = '';
-      _translatedText = '';
-    });
+  // Просто сохранить перевод в базу
+  Future<void> _saveTranslation() async {
+    if (_inputText.isEmpty) return;
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      // Простой перевод
+      final translation = _inputText == 'hello' ? 'привет' : 'мир';
+      
+      // Сохраняем в Supabase
+      await SupabaseService.client
+          .from('translations')
+          .insert({
+            'english': _inputText,
+            'russian': translation,
+            'created_at': DateTime.now().toIso8601String(),
+          });
+      
+      setState(() {
+        _translatedText = translation;
+      });
+      
+      // Обновляем список
+      await _loadTranslations();
+      
+      print('✅ Перевод сохранен в Supabase!');
+    } catch (e) {
+      print('❌ Ошибка сохранения: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
-  // Build метод - как template в Vue
-  @override
+  (@override)
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar - как верхняя панель навигации
       appBar: AppBar(
-        title: Text('Простой Переводчик'), // v-text эквивалент
-        backgroundColor: Colors.blue.shade700,
+        title: Text('Supabase Переводчик'),
+        backgroundColor: Colors.blue,
       ),
       
-      // Body - как основной контент в <template>
       body: Padding(
-        padding: EdgeInsets.all(16.0), // Аналог CSS padding
+        padding: EdgeInsets.all(16),
         child: Column(
           children: [
-            // Поле ввода - как v-model в Vue
+            // Простое поле ввода
             TextField(
               decoration: InputDecoration(
-                labelText: 'Введите текст на английском',
-                border: OutlineInputBorder(), // Стили как CSS
-                suffixIcon: IconButton(
-                  icon: Icon(Icons.clear),
-                  onPressed: _clearText, // @click эквивалент
-                ),
+                labelText: 'Введите слово (например: hello)',
+                border: OutlineInputBorder(),
               ),
-              onChanged: (value) {
-                // v-model эквивалент - реактивное обновление
-                setState(() {
-                  _inputText = value;
-                });
-              },
+              onChanged: (value) => _inputText = value,
             ),
-
-            SizedBox(height: 20), // Отступ - как margin в CSS
-
-            // Кнопка перевода - как @click в Vue
-            ElevatedButton(
-              onPressed: _inputText.isEmpty ? null : _translateText,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue, // CSS background-color
-                foregroundColor: Colors.white, // CSS color
-                minimumSize: Size(double.infinity, 50), // width: 100%
-              ),
-              child: _isTranslating 
-                  ? Row( // Условный рендеринг - как v-if
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(color: Colors.white),
-                        SizedBox(width: 10),
-                        Text('Перевожу...'),
-                      ],
-                    )
-                  : Text('Перевести'),
-            ),
-
-            SizedBox(height: 30),
-
-            // Область результата
-            Card( // Аналог <div class="card">
-              elevation: 4, // CSS box-shadow
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Результат перевода:',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold, // CSS font-weight
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      _translatedText.isEmpty ? 'Здесь появится перевод' : _translatedText,
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: _translatedText.isEmpty ? Colors.grey : Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
+            
             SizedBox(height: 20),
-
-            // Подсказка со словами из словаря
-            Expanded( // Занимает оставшееся пространство
+            
+            // Кнопка сохранить
+            ElevatedButton(
+              onPressed: _isLoading ? null : _saveTranslation,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                minimumSize: Size(double.infinity, 50),
+              ),
+              child: _isLoading 
+                  ? CircularProgressIndicator(color: Colors.white)
+                  : Text('Сохранить в Supabase'),
+            ),
+            
+            SizedBox(height: 20),
+            
+            // Просто показать результат
+            if (_translatedText.isNotEmpty)
+              Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Перевод: $_translatedText',
+                    style: TextStyle(fontSize: 20),
+                  ),
+                ),
+              ),
+            
+            SizedBox(height: 20),
+            
+            // Простой список из базы
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Доступные слова:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
+                    'Переводы из базы:',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
+                  
                   SizedBox(height: 10),
-                  // Список слов - как v-for в Vue
-                  Wrap(
-                    spacing: 8, // CSS gap
-                    children: _dictionary.keys.map((word) {
-                      return Chip( // Тег-чипс
-                        label: Text(word),
-                        backgroundColor: Colors.blue.shade100,
-                        onDeleted: () {
-                          // Клик по слову - подставляет в поле ввода
-                          setState(() {
-                            _inputText = word;
-                          });
-                          _translateText();
-                        },
-                      );
-                    }).toList(),
+
+
+xpanded(
+                    child: _isLoading
+                        ? Center(child: CircularProgressIndicator())
+                        : _translations.isEmpty
+                            ? Center(child: Text('Нет переводов в базе'))
+                            : ListView.builder(
+                                itemCount: _translations.length,
+                                itemBuilder: (context, index) {
+                                  final item = _translations[index];
+                                  return ListTile(
+                                    leading: CircleAvatar(child: Text('${index + 1}')),
+                                    title: Text('${item['english']} → ${item['russian']}'),
+                                    subtitle: Text('ID: ${item['id']}'),
+                                  );
+                                },
+                              ),
                   ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+      
+      // Просто кнопка обновить
+      floatingActionButton: FloatingActionButton(
+        onPressed: _loadTranslations,
+        child: Icon(Icons.refresh),
+        backgroundColor: Colors.blue,
       ),
     );
   }
